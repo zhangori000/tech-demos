@@ -1,0 +1,119 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: deploy-cloudflare-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Every apps/<slug>/ with a package.json "build" script is built with
+      # Vite base=/<slug>/ and copied into site/<slug>/. site/index.html links
+      # to whatever was built.
+      - name: Build apps into site/
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          slugs=()
+          for dir in apps/*/; do
+            slug="$(basename "$dir")"
+            pkg="$dir/package.json"
+            [ -f "$pkg" ] || continue
+            jq -e '.scripts.build' "$pkg" > /dev/null || continue
+            echo "::group::Build $slug"
+            # VITE_BASE covers apps whose vite config reads it; the trailing
+            # --base flag covers stock configs (CLI overrides config).
+            (cd "$dir" && bun install && VITE_BASE="/$slug/" bun run build -- --base "/$slug/")
+            if [ ! -d "$dir/dist" ]; then
+              echo "::error::$slug has a build script but produced no dist/ directory"
+              exit 1
+            fi
+            mkdir -p "site/$slug"
+            cp -R "$dir/dist/." "site/$slug/"
+            slugs+=("$slug")
+            echo "::endgroup::"
+          done
+
+          {
+            echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            echo '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            echo '<title>tech-demos</title>'
+            echo '<style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem}li{margin:.5rem 0}</style>'
+            echo '</head><body><h1>tech-demos</h1><ul>'
+            for slug in "${slugs[@]+"${slugs[@]}"}"; do
+              echo "<li><a href=\"/$slug/\">$slug</a></li>"
+            done
+            echo '</ul></body></html>'
+          } > site/index.html
+
+          echo "slugs=${slugs[*]+"${slugs[*]}"}" >> "$GITHUB_OUTPUT"
+        id: build
+
+      # PRs upload a new version of the tech-demos Worker without touching
+      # production; Cloudflare serves it on a hashed *.workers.dev preview URL.
+      - name: Upload preview version (PR)
+        if: github.event_name == 'pull_request'
+        id: preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions upload --message "PR #${{ github.event.pull_request.number }} @ ${{ github.sha }}"
+
+      - name: Deploy production (main)
+        if: github.event_name == 'push'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          WRANGLER_OUTPUT: ${{ steps.preview.outputs.command-output }}
+          BUILT_SLUGS: ${{ steps.build.outputs.slugs }}
+        with:
+          script: |
+            const marker = '<!-- cloudflare-preview-comment -->';
+            const match = process.env.WRANGLER_OUTPUT.match(/https:\/\/[^\s]*\.workers\.dev/);
+            const previewUrl = match ? match[0] : null;
+            const slugs = (process.env.BUILT_SLUGS || '').split(' ').filter(Boolean);
+
+            let body = `${marker}\n### Cloudflare preview\n\n`;
+            if (previewUrl) {
+              body += `Preview: ${previewUrl}\n\n`;
+              if (slugs.length) {
+                body += slugs.map((s) => `- [${s}](${previewUrl}/${s}/)`).join('\n') + '\n\n';
+              }
+            } else {
+              body += 'Version uploaded, but no preview URL was found in the Wrangler output. Check the workflow logs.\n\n';
+            }
+            body += `Production (after merge): https://tech-demos.zhangorienspam.workers.dev/\n`;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
