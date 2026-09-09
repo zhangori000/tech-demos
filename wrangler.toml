@@ -1,0 +1,10 @@
+# Deploys the assembled site/ directory as static assets to the existing
+# "tech-demos" Worker (https://tech-demos.zhangorienspam.workers.dev).
+# site/ is built by .github/workflows/deploy-cloudflare.yml and is not
+# committed to the repo.
+name = "tech-demos"
+compatibility_date = "2026-09-01"
+preview_urls = true
+
+[assets]
+directory = "./site"
