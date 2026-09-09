@@ -1,5 +1,12 @@
 {
-  "proposed": [],
+  "proposed": [
+    {
+      "id": "2097380152703615396",
+      "title": "pstack 0.15.0",
+      "url": "https://x.com/poteto/status/2097380152703615396",
+      "date": "2026-09-09"
+    }
+  ],
   "skipped": [],
   "built": []
 }
