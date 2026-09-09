@@ -1,12 +1,13 @@
 # PLAN — pstack-playground
 
 ## Goal
-A single-user playground that shows how pstack-style role → model assignment and stacked skills translate into a visible token-savings readout.
+A single-user guided learning surface for pstack: teach the 3-command starter path and good prompt shapes first, keep the long skill catalog quiet, and keep the role → model / skill-stub token-savings demo as a secondary explainer.
 
 ## Single-user MVP
-- One screen: configure a few agent roles, assign a model to each, toggle which skills are loaded, see estimated token savings update live.
-- Seeded demo data inspired by pstack 0.15.0 claims (skills loaded → savings), not a live pstack install.
-- Self-contained under `apps/pstack-playground/`: `bun install && bun run dev` works from that folder.
+- One page, two tabs. **Prompt coach** (default): the `/add-plugin pstack` → `/setup-pstack` → `/poteto-mode <goal>` starter path, eight copyable starter prompts, the shape of a good prompt (goal + done criteria, optional "repro first" / "don't change code yet" / "new task"), a small "which door?" decision helper, common pitfalls from the official guide, and the full command catalog collapsed into accordions.
+- **Token savings demo** (secondary tab): assign models to 4 agent roles, toggle pstack-style skill stubs (poteto-mode, how, why, interrogate, architect, tdd), see estimated token savings update live.
+- Content sourced from the official pstack 0.15.0 guide and community deep dives (poteto's Complete Guide Pt. 1, Ray Fernando, Flavio Copes). Seeded demo math, not a live pstack install.
+- Self-contained under `apps/pstack-playground/`: `bun install && bun run dev` works from that folder; `vite build --base /pstack-playground/` must also work.
 
 ## Explicitly out of scope
 - Installing or running real pstack / Cursor cloud agents from this UI
@@ -15,16 +16,16 @@ A single-user playground that shows how pstack-style role → model assignment a
 - Cloudflare / production deploy wiring
 
 ## Outcome-oriented tasks
-1. Scaffold a Vite + React + TypeScript app in `apps/pstack-playground/` via `bunx create-vite` (skip initial install), add `bunfig.toml` with `[install] minimumReleaseAge = 259200`, then `bun install`.
-2. Init shadcn/ui (minimalist preset) and add only the components needed for selects, toggles/switches, cards, and badges.
-3. Build the role → model assignment panel (3–5 preset roles; pick from a small model list).
-4. Build the skills stack toggles with a live “skills loaded → token savings” readout (simple deterministic formula from toggled skills + role count is fine).
-5. Polish one cohesive playground page; verify `bun run dev` locally.
-6. Open one PR; attach ≥1 screenshot AND ≥1 video of the running app.
+1. Scaffold a Vite + React + TypeScript app via `bunx create-vite` (skip initial install), add `bunfig.toml` with `[install] minimumReleaseAge = 259200`, then `bun install`. ✅
+2. Init shadcn/ui (radix base, Vega preset); add components on demand (card, select, switch, badge, progress, separator, button, tabs, accordion). ✅
+3. Build the prompt coach: starter path, copyable starter prompts (copy button on every prompt), prompt-shape card, decision helper, pitfalls, collapsed command catalog. ✅
+4. Build the savings demo: role → model assignment + skill-stub toggles with a live token/cost savings readout (deterministic demo math). ✅
+5. Keep the coach primary and the savings demo secondary (tabs); mobile-friendly single column. ✅
+6. Update the same PR with fresh screenshot(s) and video. ✅
 
 ## Stack
 - **Bun** — runtime / package manager / scripts (repo default)
-- **Vite + React + TS** — one-screen utility; lighter than Next/TanStack Start
+- **Vite + React + TS** — one-page utility; lighter than Next/TanStack Start
 - **shadcn/ui** — minimalist UI without inventing a design system
 - **Local React state** — enough for MVP; no backend
 
