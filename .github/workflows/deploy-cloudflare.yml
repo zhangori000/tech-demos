@@ -74,7 +74,9 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload --message "PR #${{ github.event.pull_request.number }} @ ${{ github.sha }}"
+          wranglerVersion: "4.130.0"
+          # No spaces in the message: the action's command parsing drops quotes.
+          command: versions upload --message pr-${{ github.event.pull_request.number }}-${{ github.sha }}
 
       - name: Deploy production (main)
         if: github.event_name == 'push'
@@ -82,6 +84,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.130.0"
           command: deploy
 
       - name: Comment preview URL on PR
