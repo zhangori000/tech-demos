@@ -13,8 +13,8 @@ function App() {
             <Badge variant="secondary">inspired by pstack 0.15.0</Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Learn the three commands that matter, steal some prompts, and see why skill stubs
-            save tokens. Demo content — not a live pstack install.
+            Learn the three commands that matter, steal from a library of 50+ real prompts, and
+            see why skill stubs save tokens. Demo content — not a live pstack install.
           </p>
         </header>
 
